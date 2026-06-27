@@ -1,0 +1,25 @@
+
+1. Encording
+	One-Hot Encoding(Nominal Features) 	Red,Blue,Green
+	Ordinal Encoding 			Low,Medium,High
+	Binary Mapping				Yes,No
+	
+2. Target Encoding				Glioma → 0
+						Meningioma → 1
+						Pituitary → 2
+						
+						or One-hot encode the labels.
+						
+						
+3. StandardScaler				MRI intensity
+							0–255
+							
+						Headache severity
+							0–10
+
+
+
+
+
+	
+
