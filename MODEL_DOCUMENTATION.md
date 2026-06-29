@@ -153,33 +153,40 @@ y_test  = label_encoder.transform(y_test)
 
 ## 6. Model Architecture
 
-A Sequential Multilayer Perceptron (MLP) was constructed using Keras:
+A Sequential Multilayer Perceptron (MLP) was constructed using Keras with regularization techniques added to combat overfitting identified in the initial training run.
 
 ```python
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-
 model = Sequential([
-    Dense(64, activation="relu", input_shape=(43,)),  # Hidden Layer 1
-    Dense(32, activation="relu"),                      # Hidden Layer 2
-    Dense(3,  activation="softmax")                   # Output Layer
+    tf.keras.Input(shape=(input_dim,)),        # Explicit Input (no deprecation)
+
+    Dense(64, activation="relu",
+          kernel_regularizer=l2(0.001)),       # L2 weight regularization
+    BatchNormalization(),                       # Normalize activations
+    Dropout(0.3),                              # Randomly drop 30% connections
+
+    Dense(32, activation="relu",
+          kernel_regularizer=l2(0.001)),       # L2 weight regularization
+    BatchNormalization(),
+    Dropout(0.2),                              # Randomly drop 20% connections
+
+    Dense(3, activation="softmax")             # Output: 3 classes
 ])
 ```
 
 ### Layer Summary
 
-| Layer               | Type  | Units | Activation | Parameters |
-| ------------------- | ----- | ----- | ---------- | ---------- |
-| Input → Hidden 1    | Dense | 64    | ReLU       | 2,816      |
-| Hidden 1 → Hidden 2 | Dense | 32    | ReLU       | 2,080      |
-| Hidden 2 → Output   | Dense | 3     | Softmax    | 99         |
-| **Total**           |       |       |            | **4,995**  |
+| Layer | Type | Units | Activation | Regularization |
+|---|---|---|---|---|
+| Input | Input | 43 | — | — |
+| Hidden 1 | Dense | 64 | ReLU | L2 (0.001) |
+| — | BatchNormalization | — | — | — |
+| — | Dropout | — | — | rate = 0.30 |
+| Hidden 2 | Dense | 32 | ReLU | L2 (0.001) |
+| — | BatchNormalization | — | — | — |
+| — | Dropout | — | — | rate = 0.20 |
+| Output | Dense | 3 | Softmax | — |
 
-- **Total Params:** 4,995 (19.51 KB)
-- **Trainable Params:** 4,995
-- **Non-trainable Params:** 0
-
-> **Note:** The `input_shape` argument triggers a Keras deprecation warning in Keras 3.x. For future compatibility, replace with an explicit `keras.Input(shape=(43,))` as the first layer.
+> **Regularization rationale:** The original model (no dropout/L2) showed clear overfitting — training loss → 0.00 while validation loss climbed to 0.45 by epoch 50. Dropout, BatchNormalization, and L2 weight penalty were added to improve generalization.
 
 ---
 
@@ -192,21 +199,42 @@ model.compile(
     metrics=["accuracy"]
 )
 
+# Callbacks to prevent overfitting
+early_stopping = EarlyStopping(
+    monitor='val_loss',
+    patience=8,
+    restore_best_weights=True,
+    verbose=1
+)
+
+reduce_lr = ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.5,
+    patience=4,
+    min_lr=1e-6,
+    verbose=1
+)
+
 history = model.fit(
     X_train, Y_train,
     validation_data=(X_val, y_val),
-    epochs=50,
-    batch_size=32
+    epochs=100,           # ceiling; EarlyStopping halts before this
+    batch_size=32,
+    callbacks=[early_stopping, reduce_lr]
 )
 ```
 
-| Hyperparameter  | Value                           |
-| --------------- | ------------------------------- |
-| Optimizer       | Adam (default lr = 0.001)       |
-| Loss Function   | Sparse Categorical Crossentropy |
-| Epochs          | 50                              |
-| Batch Size      | 32                              |
-| Steps per Epoch | 197                             |
+| Hyperparameter | Value |
+|---|---|
+| Optimizer | Adam (default lr = 0.001) |
+| Loss Function | Sparse Categorical Crossentropy |
+| Max Epochs | 100 (EarlyStopping halts early) |
+| Batch Size | 32 |
+| EarlyStopping patience | 8 epochs |
+| ReduceLROnPlateau factor | 0.5 (halves LR on plateau) |
+| ReduceLROnPlateau patience | 4 epochs |
+| Dropout rates | 0.30 (Layer 1), 0.20 (Layer 2) |
+| L2 regularization λ | 0.001 (both Dense layers) |
 
 ---
 
@@ -232,12 +260,11 @@ history = model.fit(
 | Accuracy | 99.62%   | 94.07%     |
 | Loss     | 0.0120   | 0.4245     |
 
-### Observations
+### Observations (Original Run — Overfitting Detected)
 
-- **Fast Convergence:** The model achieves >95% validation accuracy within just 2 epochs.
-- **Overfitting Signal:** From epoch ~10 onward, training accuracy continues climbing toward 100% while validation accuracy plateaus around 94%. The divergence in loss curves is characteristic of overfitting.
-- **Validation Plateau:** Validation accuracy stabilizes in the 93–95% range from epoch 5 onwards, suggesting the model's generalization capacity is reached early.
-- **Recommendation:** Adding `Dropout` layers (e.g., 0.3 rate) or using `EarlyStopping` (monitor `val_loss`, patience=5) would mitigate overfitting and likely improve the final checkpoint quality.
+- **Fast Convergence:** The model achieved >95% validation accuracy within just 2 epochs.
+- **Overfitting Signal:** From epoch ~5 onward, training accuracy climbed toward 100% while validation accuracy plateaued at ~94%. Training loss → 0.00 while validation loss rose to 0.45 — a classic overfitting pattern.
+- **Fix Applied:** Dropout, BatchNormalization, L2 regularization, EarlyStopping, and ReduceLROnPlateau were added to correct this. The model now trains until `val_loss` stops improving, restoring the best weights automatically.
 
 ---
 
