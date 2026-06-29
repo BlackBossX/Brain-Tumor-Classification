@@ -26,13 +26,13 @@
 
 ## 1. Dataset Overview
 
-| Property | Value |
-|---|---|
-| File | `dataset/brain_tumor_data.csv` |
-| Total Records | 9,000 |
-| Total Features (raw) | 27 |
-| Target Column | `tumor_type` |
-| Classes | Glioma, Meningioma, Pituitary |
+| Property             | Value                          |
+| -------------------- | ------------------------------ |
+| File                 | `dataset/brain_tumor_data.csv` |
+| Total Records        | 9,000                          |
+| Total Features (raw) | 27                             |
+| Target Column        | `tumor_type`                   |
+| Classes              | Glioma, Meningioma, Pituitary  |
 
 The dataset is fully synthetic and was designed to mirror realistic clinical and demographic features associated with brain tumor diagnosis.
 
@@ -42,11 +42,11 @@ The dataset is fully synthetic and was designed to mirror realistic clinical and
 
 The data was split **before** any transformation is applied to prevent data leakage.
 
-| Split | Proportion | Records (approx.) |
-|---|---|---|
-| Train | 70% | 6,300 |
-| Validation | 15% | 1,350 |
-| Test | 15% | 1,350 |
+| Split      | Proportion | Records (approx.) |
+| ---------- | ---------- | ----------------- |
+| Train      | 70%        | 6,300             |
+| Validation | 15%        | 1,350             |
+| Test       | 15%        | 1,350             |
 
 > **Anti-Leakage Guarantee:** All encoders and scalers are fit **exclusively on training data** (`X_train`) and then applied to validation and test sets via `transform()` only.
 
@@ -78,19 +78,19 @@ X_val,   X_test, y_val,   y_test = train_test_split(X_temp, y_temp, test_size=0.
 
 ### Step 3: Missing Value Imputation (fit on train only)
 
-| Feature Group | Strategy | Transformer |
-|---|---|---|
-| Numeric features | Median | `SimpleImputer(strategy='median')` |
+| Feature Group        | Strategy             | Transformer                               |
+| -------------------- | -------------------- | ----------------------------------------- |
+| Numeric features     | Median               | `SimpleImputer(strategy='median')`        |
 | Categorical features | Most frequent (mode) | `SimpleImputer(strategy='most_frequent')` |
 
 ### Step 4: Categorical Encoding
 
-| Encoding Type | Applied To | Method |
-|---|---|---|
-| Binary mapping | Boolean / symptom flags (e.g., `nausea`, `seizures`, `family_history`) | Manual dict map: `{True/Yes: 1, False/No: 0}` |
-| Ordinal mapping | Severity / ranked categoricals (e.g., `headache_severity`, `edema_grade`) | Manual ordered integer map |
+| Encoding Type    | Applied To                                                                                                      | Method                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Binary mapping   | Boolean / symptom flags (e.g., `nausea`, `seizures`, `family_history`)                                          | Manual dict map: `{True/Yes: 1, False/No: 0}`      |
+| Ordinal mapping  | Severity / ranked categoricals (e.g., `headache_severity`, `edema_grade`)                                       | Manual ordered integer map                         |
 | One-Hot Encoding | Nominal categoricals (e.g., `ethnicity`, `tumor_location`, `smoking_status`, `genetic_marker_status`, `region`) | `OneHotEncoder(drop='first', sparse_output=False)` |
-| Binary mapping | `gender` | `{Male: 1, Female: 0}` |
+| Binary mapping   | `gender`                                                                                                        | `{Male: 1, Female: 0}`                             |
 
 ### Step 5: Standard Scaling (fit on train only)
 
@@ -110,10 +110,10 @@ X_test[numeric_cols]  = scaler.transform(X_test[numeric_cols])
 
 After all preprocessing steps, the feature space expands due to One-Hot Encoding:
 
-| Feature Count | Stage |
-|---|---|
-| 27 | Raw input features |
-| **43** | After OHE expansion (confirmed: `X_train.shape = (6300, 43)`) |
+| Feature Count | Stage                                                         |
+| ------------- | ------------------------------------------------------------- |
+| 27            | Raw input features                                            |
+| **43**        | After OHE expansion (confirmed: `X_train.shape = (6300, 43)`) |
 
 ### One-Hot Encoded Columns (examples)
 
@@ -144,10 +144,10 @@ y_test  = label_encoder.transform(y_test)
 ### Class Mapping
 
 | Label (String) | Encoded Integer |
-|---|---|
-| Glioma | 0 |
-| Meningioma | 1 |
-| Pituitary | 2 |
+| -------------- | --------------- |
+| Glioma         | 0               |
+| Meningioma     | 1               |
+| Pituitary      | 2               |
 
 ---
 
@@ -168,12 +168,12 @@ model = Sequential([
 
 ### Layer Summary
 
-| Layer | Type | Units | Activation | Parameters |
-|---|---|---|---|---|
-| Input → Hidden 1 | Dense | 64 | ReLU | 2,816 |
-| Hidden 1 → Hidden 2 | Dense | 32 | ReLU | 2,080 |
-| Hidden 2 → Output | Dense | 3 | Softmax | 99 |
-| **Total** | | | | **4,995** |
+| Layer               | Type  | Units | Activation | Parameters |
+| ------------------- | ----- | ----- | ---------- | ---------- |
+| Input → Hidden 1    | Dense | 64    | ReLU       | 2,816      |
+| Hidden 1 → Hidden 2 | Dense | 32    | ReLU       | 2,080      |
+| Hidden 2 → Output   | Dense | 3     | Softmax    | 99         |
+| **Total**           |       |       |            | **4,995**  |
 
 - **Total Params:** 4,995 (19.51 KB)
 - **Trainable Params:** 4,995
@@ -200,13 +200,13 @@ history = model.fit(
 )
 ```
 
-| Hyperparameter | Value |
-|---|---|
-| Optimizer | Adam (default lr = 0.001) |
-| Loss Function | Sparse Categorical Crossentropy |
-| Epochs | 50 |
-| Batch Size | 32 |
-| Steps per Epoch | 197 |
+| Hyperparameter  | Value                           |
+| --------------- | ------------------------------- |
+| Optimizer       | Adam (default lr = 0.001)       |
+| Loss Function   | Sparse Categorical Crossentropy |
+| Epochs          | 50                              |
+| Batch Size      | 32                              |
+| Steps per Epoch | 197                             |
 
 ---
 
@@ -215,22 +215,22 @@ history = model.fit(
 ### Epoch Milestones
 
 | Epoch | Train Acc | Val Acc | Train Loss | Val Loss |
-|---|---|---|---|---|
-| 1 | 0.8440 | 0.9496 | 0.4026 | 0.1365 |
-| 2 | 0.9584 | 0.9570 | 0.1248 | 0.1155 |
-| 5 | 0.9625 | 0.9548 | 0.1010 | 0.1207 |
-| 10 | 0.9702 | 0.9526 | 0.0819 | 0.1313 |
-| 20 | 0.9892 | 0.9415 | 0.0379 | 0.1839 |
-| 30 | 0.9986 | 0.9407 | 0.0115 | 0.2703 |
-| 40 | 1.0000 | 0.9407 | 0.0020 | 0.3659 |
-| 50 | 0.9962 | 0.9407 | 0.0120 | 0.4245 |
+| ----- | --------- | ------- | ---------- | -------- |
+| 1     | 0.8440    | 0.9496  | 0.4026     | 0.1365   |
+| 2     | 0.9584    | 0.9570  | 0.1248     | 0.1155   |
+| 5     | 0.9625    | 0.9548  | 0.1010     | 0.1207   |
+| 10    | 0.9702    | 0.9526  | 0.0819     | 0.1313   |
+| 20    | 0.9892    | 0.9415  | 0.0379     | 0.1839   |
+| 30    | 0.9986    | 0.9407  | 0.0115     | 0.2703   |
+| 40    | 1.0000    | 0.9407  | 0.0020     | 0.3659   |
+| 50    | 0.9962    | 0.9407  | 0.0120     | 0.4245   |
 
 ### Final Metrics (Epoch 50)
 
-| Metric | Training | Validation |
-|---|---|---|
-| Accuracy | 99.62% | 94.07% |
-| Loss | 0.0120 | 0.4245 |
+| Metric   | Training | Validation |
+| -------- | -------- | ---------- |
+| Accuracy | 99.62%   | 94.07%     |
+| Loss     | 0.0120   | 0.4245     |
 
 ### Observations
 
@@ -254,14 +254,14 @@ Evaluated on 1,350 held-out test samples (43 batches).
 
 ### Classification Report
 
-| Class | Precision | Recall | F1-Score | Support |
-|---|---|---|---|---|
-| **Glioma (0)** | 0.99 | 0.95 | 0.97 | 570 |
-| **Meningioma (1)** | 0.90 | 0.95 | 0.93 | 464 |
-| **Pituitary (2)** | 0.94 | 0.91 | 0.92 | 316 |
-| **Accuracy** | | | **0.94** | 1350 |
-| **Macro Avg** | 0.94 | 0.94 | 0.94 | 1350 |
-| **Weighted Avg** | 0.95 | 0.94 | 0.94 | 1350 |
+| Class              | Precision | Recall | F1-Score | Support |
+| ------------------ | --------- | ------ | -------- | ------- |
+| **Glioma (0)**     | 0.99      | 0.95   | 0.97     | 570     |
+| **Meningioma (1)** | 0.90      | 0.95   | 0.93     | 464     |
+| **Pituitary (2)**  | 0.94      | 0.91   | 0.92     | 316     |
+| **Accuracy**       |           |        | **0.94** | 1350    |
+| **Macro Avg**      | 0.94      | 0.94   | 0.94     | 1350    |
+| **Weighted Avg**   | 0.95      | 0.94   | 0.94     | 1350    |
 
 ### Key Observations
 
@@ -274,46 +274,48 @@ Evaluated on 1,350 held-out test samples (43 batches).
 
 ## 10. Serialized Artifacts
 
-| Artifact | Path | Description |
-|---|---|---|
-| Preprocessing Pipeline | `models/preprocessing_pipeline.pkl` | `joblib`-serialized sklearn pipeline (imputer + encoder + scaler) |
-| Trained Model | `models/brain_tumor_model.h5` | Keras H5 model with trained weights |
-| Label Encoder | `models/label_encoder.pkl` | Serialized `LabelEncoder` for target decoding |
+| Artifact            | Path                             | Description                                        |
+| ------------------- | -------------------------------- | -------------------------------------------------- |
+| Keras Model         | `models/brain_tumor_model.h5`    | Saved weights and architecture of the trained MLP  |
+| Numeric Imputer     | `models/numeric_imputer.pkl`     | Median-based imputer for the 13 numeric features   |
+| Categorical Imputer | `models/categorical_imputer.pkl` | Mode-based imputer for the 14 categorical features |
+| One-Hot Encoder     | `models/onehot_encoder.pkl`      | OneHotEncoder for categorical nominal variables    |
+| Standard Scaler     | `models/standard_scaler.pkl`     | StandardScaler fit on training numeric features    |
+| Label Encoder       | `models/label_encoder.pkl`       | Target label mapping (Glioma/Meningioma/Pituitary) |
 
 ### Loading for Inference
 
 ```python
 import joblib
 import numpy as np
+import pandas as pd
 from tensorflow.keras.models import load_model
 
-# Load artifacts
-pipeline = joblib.load('models/preprocessing_pipeline.pkl')
-model    = load_model('models/brain_tumor_model.h5')
-le       = joblib.load('models/label_encoder.pkl')
+# Load all artifacts
+model = load_model('models/brain_tumor_model.h5')
+numeric_imputer = joblib.load('models/numeric_imputer.pkl')
+categorical_imputer = joblib.load('models/categorical_imputer.pkl')
+onehot_encoder = joblib.load('models/onehot_encoder.pkl')
+scaler = joblib.load('models/standard_scaler.pkl')
+label_encoder = joblib.load('models/label_encoder.pkl')
 
-# Preprocess new data
-X_new_processed = pipeline.transform(X_new_raw)
-
-# Predict
-probs   = model.predict(X_new_processed)
-classes = np.argmax(probs, axis=1)
-labels  = le.inverse_transform(classes)   # → ['Glioma', 'Meningioma', ...]
+# For end-to-end preprocessing, run the script:
+python predict.py <path_to_csv>
 ```
 
-> ⚠️ **Warning:** The preprocessing pipeline must be used for **all** inference. Never transform raw data manually or with a re-fitted scaler, as this will produce incorrect results.
+> ⚠️ **Warning:** The exact fitted imputer, encoder, and scaler from the training set must be reused for **all** inference tasks. Re-fitting any estimator on test/prediction data will lead to feature shifts and incorrect predictions.
 
 ---
 
 ## 11. Key Design Decisions
 
-| Decision | Rationale |
-|---|---|
-| Split-before-transform | Prevents data leakage; ensures validation/test metrics reflect true generalization |
-| Median imputation for numerics | Robust to outliers compared to mean imputation |
-| Mode imputation for categoricals | Most appropriate strategy for categorical missing values |
-| `drop='first'` in OHE | Avoids multicollinearity (dummy variable trap) in the dense layers |
+| Decision                          | Rationale                                                                               |
+| --------------------------------- | --------------------------------------------------------------------------------------- |
+| Split-before-transform            | Prevents data leakage; ensures validation/test metrics reflect true generalization      |
+| Median imputation for numerics    | Robust to outliers compared to mean imputation                                          |
+| Mode imputation for categoricals  | Most appropriate strategy for categorical missing values                                |
+| `drop='first'` in OHE             | Avoids multicollinearity (dummy variable trap) in the dense layers                      |
 | `sparse_categorical_crossentropy` | Works with integer class labels directly, avoiding the need for one-hot target encoding |
-| Adam optimizer | Adaptive learning rate; well-suited for tabular MLP classification tasks |
-| Softmax output | Multi-class classification requires probability distribution over all classes |
-| `joblib` serialization | Ensures the exact fitted transformers are reused at inference time |
+| Adam optimizer                    | Adaptive learning rate; well-suited for tabular MLP classification tasks                |
+| Softmax output                    | Multi-class classification requires probability distribution over all classes           |
+| `joblib` serialization            | Ensures the exact fitted transformers are reused at inference time                      |
