@@ -39,12 +39,16 @@ Brain Tumor Classification/
 │   └── data_dictionary.txt        # Feature descriptions
 ├── models/
 │   ├── brain_tumor_model.h5       # Trained Keras model
-│   ├── preprocessing_pipeline.pkl # Serialized sklearn preprocessing pipeline
+│   ├── numeric_imputer.pkl        # Median imputer for numeric columns
+│   ├── categorical_imputer.pkl    # Mode imputer for categorical columns
+│   ├── onehot_encoder.pkl         # One-Hot encoder for nominal columns
+│   ├── standard_scaler.pkl        # Standard scaler for numeric columns
 │   └── label_encoder.pkl          # Serialized LabelEncoder for target decoding
 ├── notebooks/
 │   └── BrainTumorClassification.ipynb  # Full training notebook
 ├── docs/
 │   └── MODEL_DOCUMENTATION.md    # Detailed technical documentation
+├── predict.py                     # CLI script for predicting new data
 └── README.md
 ```
 
@@ -89,45 +93,56 @@ All encoders and scalers are **fit exclusively on training data** and applied vi
 ### Pipeline Steps
 
 1. **Manual Cleaning** — Normalize inconsistent markers (`'Unknown'`, `'?'` → `NaN`; gender casing)
-2. **Imputation** — Median for numerics, mode for categoricals (`SimpleImputer`)
+2. **Imputation** — Median for numeric features (13 columns, including `edema_grade`), mode for categorical features (`SimpleImputer`)
 3. **Encoding:**
    - Binary mapping for symptom flags and boolean columns
-   - Ordinal mapping for severity/ranked features
+   - Ordinal mapping for severity/ranked features (e.g. `contrast_enhancement`)
    - One-Hot Encoding for nominal categoricals (`ethnicity`, `tumor_location`, `smoking_status`, `region`, `genetic_marker_status`)
-4. **Standard Scaling** — Z-score normalization of numeric features (`StandardScaler`)
+4. **Standard Scaling** — Z-score normalization of numeric features (12 columns, excluding `edema_grade` which is kept ordinal)
 
 After One-Hot Encoding, features expand from **27 → 43**.
 
-### Serialized Pipeline
+### Serialized Pipeline Artifacts
 
-The fitted pipeline is saved to `models/preprocessing_pipeline.pkl` using `joblib`. This ensures identical transformations during inference.
+The fitted preprocessing objects are serialized individually to the `models/` directory using `joblib`. This modularity allows the inference script to apply exact transformations to new samples without risking data shifts.
 
 ---
 
 ## Model Architecture
 
-```
-Input (43 features)
-     │
-  Dense(64, ReLU)     ← 2,816 params
-     │
-  Dense(32, ReLU)     ← 2,080 params
-     │
-  Dense(3, Softmax)   ← 99 params
-     │
-Output (Glioma | Meningioma | Pituitary)
+To combat overfitting, the model employs L2 regularization, Batch Normalization, and Dropout layers:
 
-Total Trainable Params: 4,995
+```
+          Input (43 features)
+               │
+    Dense(64, ReLU, L2 = 0.001)
+               │
+       BatchNormalization
+               │
+          Dropout(0.3)
+               │
+    Dense(32, ReLU, L2 = 0.001)
+               │
+       BatchNormalization
+               │
+          Dropout(0.2)
+               │
+        Dense(3, Softmax)
+               │
+Output (Glioma | Meningioma | Pituitary)
 ```
 
 ### Training Configuration
 
-| Hyperparameter | Value |
-|---|---|
-| Optimizer | Adam |
-| Loss | Sparse Categorical Crossentropy |
-| Epochs | 50 |
-| Batch Size | 32 |
+| Hyperparameter | Value | Description |
+|---|---|---|
+| **Optimizer** | Adam | Adaptive learning rate |
+| **Loss** | Sparse Categorical Crossentropy | Integer-encoded class targets |
+| **Max Epochs** | 100 | Ceiling; halted early by callbacks |
+| **Batch Size** | 32 | Number of samples per batch |
+| **Early Stopping** | patience=8 | Halts training if validation loss plateaus |
+| **LR Scheduler** | patience=4, factor=0.5 | Halves learning rate on validation loss plateaus |
+| **Regularization** | L2 (0.001), Dropout (0.3/0.2) | Mitigates overfitting |
 
 ---
 
@@ -149,7 +164,7 @@ Total Trainable Params: 4,995
 | Pituitary | 0.94 | 0.91 | 0.92 |
 | **Macro Avg** | 0.94 | 0.94 | **0.94** |
 
-> For the full training history, confusion matrix, and detailed analysis, see [`docs/MODEL_DOCUMENTATION.md`](docs/MODEL_DOCUMENTATION.md).
+> For the full training history, learning curves, and comprehensive model metrics, see [`docs/MODEL_DOCUMENTATION.md`](docs/MODEL_DOCUMENTATION.md).
 
 ---
 
@@ -172,50 +187,41 @@ jupyter notebook notebooks/BrainTumorClassification.ipynb
 ```
 
 This will:
-1. Load and clean the dataset
-2. Split data into train/val/test sets
-3. Build and serialize the preprocessing pipeline
-4. Train the MLP model for 50 epochs
-5. Evaluate on the test set
-6. Save `brain_tumor_model.h5` and `preprocessing_pipeline.pkl` to `models/`
+1. Load and clean the dataset.
+2. Split data into train/val/test sets.
+3. Fit and serialize the preprocessing steps.
+4. Train the regularized MLP model with `EarlyStopping` and `ReduceLROnPlateau` callbacks.
+5. Save the trained model (`brain_tumor_model.h5`) and individual sklearn estimators to `models/`.
 
 ### Running Inference
 
-```python
-import joblib
-import numpy as np
-from tensorflow.keras.models import load_model
+An end-to-end CLI prediction script is provided in `predict.py` to classify raw CSV datasets.
 
-# Load saved artifacts
-pipeline = joblib.load('models/preprocessing_pipeline.pkl')
-model    = load_model('models/brain_tumor_model.h5')
-le       = joblib.load('models/label_encoder.pkl')
-
-# Prepare raw input (DataFrame with the original 27 feature columns)
-X_new_processed = pipeline.transform(X_new_raw)
-
-# Predict
-probs          = model.predict(X_new_processed)
-predicted_idx  = np.argmax(probs, axis=1)
-predicted_labels = le.inverse_transform(predicted_idx)
-# → ['Glioma', 'Pituitary', ...]
+```bash
+# Run predictions on a raw dataset (e.g., test.csv)
+python predict.py dataset/test.csv
 ```
 
-> ⚠️ Always use the saved `preprocessing_pipeline.pkl` — never re-fit or manually scale data for inference.
+This script automatically:
+1. Loads the target CSV.
+2. Applies the saved numeric imputer, categorical imputer, one-hot encoder, and standard scaler.
+3. Feeds the processed features to the Keras model.
+4. Outputs the predictions to stdout and exports a `_predictions.csv` file containing:
+   - `predicted_label` (integer index)
+   - `predicted_class` (name of the tumor class)
+   - `confidence` (probability score)
 
 ---
 
 ## Key ML Principles
 
-This project demonstrates several best practices for real-world ML pipelines:
-
 | Principle | Implementation |
 |---|---|
-| **No Data Leakage** | Split performed before any transformation; encoders fit only on training data |
-| **Reproducibility** | Fixed `random_state=42`; serialized pipeline and model artifacts |
-| **Robust Imputation** | Median/mode imputation handles missing values without bias |
-| **Ordinal Awareness** | Severity features encoded with correct order instead of arbitrary integers |
-| **Pipeline Serialization** | `joblib` ensures inference-time transformations match training exactly |
+| **No Data Leakage** | Splits are performed before any transformation. Estimators are fit exclusively on training data. |
+| **Overfitting Defense** | Addressed using Dropout, Batch Normalization, L2 regularization, and Early Stopping. |
+| **Reproducibility** | Set fixed random states (`random_state=42`) and serialized all fitting artifacts. |
+| **Robust Imputation** | Imputes missing values using median (numerics) and mode (categoricals) derived from training data only. |
+| **Consistent Inference** | The `predict.py` pipeline loads exact training estimators via `joblib`, matching the training data distribution exactly. |
 
 ---
 
